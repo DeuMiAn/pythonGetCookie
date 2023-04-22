@@ -2,8 +2,8 @@ import gym
 import numpy as np
 from collections import defaultdict
 
-# env = gym.make("FrozenLake-v1", render_mode = "human")
-env = gym.make("FrozenLake-v1")
+env = gym.make("FrozenLake-v1", render_mode = "human")
+# env = gym.make("FrozenLake-v1")
 env.reset()
 # env.close()
 totalWin=0 #정답찾는 횟수를 체크하기위한 부분
