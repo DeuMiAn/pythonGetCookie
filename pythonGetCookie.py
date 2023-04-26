@@ -1,6 +1,9 @@
 
 
 # env = gym.make("FrozenLake-v1", render_mode = "human")
+import time
+
+
 def requestFrozenLakeGame():
     import numpy as np
     from collections import defaultdict
@@ -73,22 +76,24 @@ def requestFrozenLakeGame():
         print(totalWin)
 
 
-def decode_state(state):
-    """상태 값을 (택시 행, 택시 열, 승객 위치, 목적지 위치) 형태로 분리합니다."""
-    taxi_location = state // 500  # 택시 위치 (0 ~ 24)
-    passenger_location = (state % 500) // 20  # 승객 위치 (0 ~ 4)
-    destination = (state % 500) % 20 // 4  # 목적지 위치 (0 ~ 3)
-    taxi_row, taxi_col = taxi_location // 5, taxi_location % 5  # 택시 위치 (행, 열)
-    print("taxi_row: "+str(taxi_row))
-    print("taxi_col: "+str(taxi_col))
-    print("passenger_location: "+str(passenger_location))
-    print("destination: "+str(destination))
+def decode(i):
+    out = []
+    out.append(i % 4)
+    i = i // 4  # i를 4로 나눈 정수값을 i에 할당함
+    out.append(i % 5)
+    i = i // 5  # i를 5로 나눈 정수값을 i에 할당함
+    out.append(i % 5)
+    i = i // 5  # i를 5로 나눈 정수값을 i에 할당함
+    out.append(i)
+    assert 0 <= i < 5
+    print(out)
 
 
 def python_reinforcement_learning1():
     import numpy as np
     import gym
     import random
+    import os
 
     f = open("qtable.txt", 'w')
 
@@ -100,7 +105,7 @@ def python_reinforcement_learning1():
     action_size = env.action_space.n
     print(state_size)
     print(action_size)
-    input()
+    # input()
     qtable = np.zeros((state_size, action_size))
 
     # 하이퍼 매개 변수
@@ -119,8 +124,7 @@ def python_reinforcement_learning1():
         # 환경을 재설정
         state = env.reset()
         print(state)
-        decode_state(state[0])
-        input()
+        decode(state[0])
         state = state[0]
         terminal = False
 
@@ -129,14 +133,17 @@ def python_reinforcement_learning1():
             # 탐사 시작~ 절충안 찾기
             if random.uniform(0, 1) < epsilon:
                 # 탐험
-                action = env.action_space.sample()
+                # action = env.action_space.sample()
+                action = random.randrange(0, 6)
+                print("action")
+                print(action)
             else:
                 # 안전빵
                 action = np.argmax(qtable[state, :])
 
             # 행동을 취하고 보상을 준수합니다
             next_state, reward, terminal, info, *_ = env.step(action)
-            print()
+            print(info)
 
             # Q 알고리즘
             # 현재에 기대되는 값은/      올드 값/                 학습속도/        보상/   거리간 보상 가중치장치/ 어디로 갔을떄 거기서 기대할수있는 가장 큰값    예전값
@@ -146,7 +153,13 @@ def python_reinforcement_learning1():
 
             # 상태 업데이트
             state = next_state
+            os.system('clear')
             print(env.render())
+            f.write("%s\n" % env.render())
+            f.write("%s\n" % state)
+            print(state)
+            decode(state)
+            time.sleep(0.01)
 
             # if terminal, finish episode
             if terminal == True:
