@@ -166,7 +166,7 @@ def python_reinforcement_learning1():
             print(state)
             decode(state)
 
-            time.sleep(0.03)
+            time.sleep(0.01)
 
             # if terminal, finish episode
             if terminal == True:
@@ -208,4 +208,65 @@ def python_reinforcement_learning1():
     env.close()
 
 
-python_reinforcement_learning1()
+def python_reinforcement_learning2():
+    import numpy as np
+    import gym
+    import random
+    import os
+
+    # create LunarLander-v2
+    env = gym.make('LunarLander-v2',  render_mode='human')
+
+    # 현재 상태에 따른 보상 테이블 초기화
+    state = env.reset()
+    state_size = env.observation_space
+    action_size = env.action_space.sample()
+    print(state_size)
+    print(action_size)
+
+    # state
+    # x, y, x속도, y속도, 각도, 각속도, 왼다리접촉, 오른다리접촉
+
+    # action_size
+
+    # max_episodes = 100
+
+    # scores = []
+    # actions = range(env.action_space.n)
+    # for i in range(1, max_episodes+1):
+    #     state = env.reset()
+    #     score = 0
+    #     while True:
+    #         action = np.random.choice(actions)
+    #         state, reward, done, info, *_ = env.step(action)
+    #         score += reward
+    #         if done:
+    #             if i % 20 == 0:
+    #                 print('Episode {},  score: {}'.format(i, score))
+    #             break
+
+    #     scores.append(score)
+
+    # print(state)
+    # for _ in range(20):
+    #     # Take a random action
+    #     action = env.action_space.sample()
+    #     print("Action taken:", action)
+
+    #     # Do this action in the environment and get
+    #     # next_state, reward, done and info
+    #     observation, reward, done, info, *_ = env.step(action)
+    #     print({"observation": observation})
+
+    #     # If the game is done (in our case we land, crashed or timeout)
+    #     if done:
+    #         # Reset the environment
+    #         print("Environment is reset")
+    #         observation = env.reset()
+    # for i in range(20):
+    #     env.step(2)
+    #     env.render()
+    input()
+
+
+python_reinforcement_learning2()
