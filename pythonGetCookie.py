@@ -123,27 +123,33 @@ def python_reinforcement_learning1():
 
         # 환경을 재설정
         state = env.reset()
+        rewards = 0
         print(state)
         decode(state[0])
         state = state[0]
         terminal = False
 
         for s in range(max_steps):
+            os.system('clear')
 
             # 탐사 시작~ 절충안 찾기
             if random.uniform(0, 1) < epsilon:
                 # 탐험
                 # action = env.action_space.sample()
                 action = random.randrange(0, 6)
-                print("action")
-                print(action)
             else:
                 # 안전빵
                 action = np.argmax(qtable[state, :])
 
             # 행동을 취하고 보상을 준수합니다
-            next_state, reward, terminal, info, *_ = env.step(action)
-            print(info)
+            next_state, reward, terminal, info, info2 = env.step(action)
+            rewards += reward
+            print("action")
+            print(action)
+            print("info")
+            print({"next_state": next_state, "reward": rewards,
+                  "terminal": terminal, "gameEpisode": episode})
+            # print(info2)
 
             # Q 알고리즘
             # 현재에 기대되는 값은/      올드 값/                 학습속도/        보상/   거리간 보상 가중치장치/ 어디로 갔을떄 거기서 기대할수있는 가장 큰값    예전값
@@ -153,13 +159,14 @@ def python_reinforcement_learning1():
 
             # 상태 업데이트
             state = next_state
-            os.system('clear')
             print(env.render())
+
             f.write("%s\n" % env.render())
             f.write("%s\n" % state)
             print(state)
             decode(state)
-            time.sleep(0.01)
+
+            time.sleep(0.03)
 
             # if terminal, finish episode
             if terminal == True:
