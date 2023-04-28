@@ -1,4 +1,5 @@
 import gym
+# colleections library는 replay buffer에 쓰일 deque를 import하기 위함임
 import collections
 import random
 
@@ -10,12 +11,14 @@ import torch.optim as optim
 # Hyperparameters
 learning_rate = 0.0005
 gamma = 0.98
-buffer_limit = 50000
-batch_size = 32
+buffer_limit = 50000  # replay buffer에 최대크기지정 문제마다 버퍼의 크기가 다름 DQN논문에서는 100만을 선언함
+batch_size = 32 #replay buffer에서 샘플링할때 필요함 
 
 
+# replay buffer 를 구현한 클래스
 class ReplayBuffer():
     def __init__(self):
+        # collections.deque에서 넣고 뺴고를 함
         self.buffer = collections.deque(maxlen=buffer_limit)
 
     def put(self, transition):
