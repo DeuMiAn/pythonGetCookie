@@ -12,19 +12,22 @@ import torch.optim as optim
 learning_rate = 0.0005
 gamma = 0.98
 buffer_limit = 50000  # replay buffer에 최대크기지정 문제마다 버퍼의 크기가 다름 DQN논문에서는 100만을 선언함
-batch_size = 32 #replay buffer에서 샘플링할때 필요함 
+batch_size = 32 #replay buffer에서 샘플링할때 보통 필요함 최적이 32임
 
 
 # replay buffer 를 구현한 클래스
 class ReplayBuffer():
     def __init__(self):
         # collections.deque에서 넣고 뺴고를 함
+        # 이때 buffer_limit가 최대크기를 제한해서 최대크기 이상값이면 자동으로 오래된데이터 삭제됨
         self.buffer = collections.deque(maxlen=buffer_limit)
 
+    #put메소드 리플리데이터 넣는함수 
     def put(self, transition):
         self.buffer.append(transition)
 
     def sample(self, n):
+        # 랜덤하게 버퍼해서 샘플링해라
         mini_batch = random.sample(self.buffer, n)
         s_lst, a_lst, r_lst, s_prime_lst, done_mask_lst = [], [], [], [], []
 
@@ -47,22 +50,34 @@ class ReplayBuffer():
 class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
+        #딥러닝 레이어는 크게 3개
+        #입력 레이어 4개를 입력받고 
         self.fc1 = nn.Linear(4, 128)
+        #이후 2개의 은닉 레이어가 존재
         self.fc2 = nn.Linear(128, 128)
         self.fc3 = nn.Linear(128, 2)
 
     def forward(self, x):
+        # 활성함수 relu 사용 0~무한
         x = F.relu(self.fc1(x))
+        # 활성함수 relu 사용 0~무한
         x = F.relu(self.fc2(x))
+        # 마지막에는 활성함수 X 
+        # 원래 마지막에는 활성함수 안넣음
         x = self.fc3(x)
         return x
 
     def sample_action(self, obs, epsilon):
+        #입실론 그리디 구현을위한 함수
+        #
         out = self.forward(obs)
+        #코인이라는 변수에 랜덤값(0~1) 넣고
         coin = random.random()
         if coin < epsilon:
-            return random.randint(0, 1)
+            return random.randint(0, 1) #출력 0 또는1 랜덤값
         else:
+            # print(out)
+            # print(out.argmax().item())
             return out.argmax().item()
 
 
@@ -96,6 +111,8 @@ def main():
         epsilon = max(0.01, 0.08 - 0.01*(n_epi/200)
                       )  # Linear annealing from 8% to 1%
         s, _ = env.reset()
+        print("s")
+        print(s)
         done = False
 
         while not done:
