@@ -47,7 +47,7 @@ class ReplayBuffer():
 
 
 class Qnet(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self):
         super(Qnet, self).__init__()
         self.fc1 = nn.Linear(8, 64)
         self.fc2 = nn.Linear(64, 128)
@@ -99,7 +99,6 @@ def main():
         s, _ = env.reset()
         done = False
         time = 0
-
         for t in range(1000):
             time += 1
             a = q.sample_action(torch.from_numpy(s).float(), epsilon)
