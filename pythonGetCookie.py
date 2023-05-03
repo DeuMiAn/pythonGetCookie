@@ -229,43 +229,47 @@ def python_reinforcement_learning2():
 
     # action_size
 
-    # max_episodes = 100
+    max_episodes = 100
 
-    # scores = []
-    # actions = range(env.action_space.n)
-    # for i in range(1, max_episodes+1):
-    #     state = env.reset()
-    #     score = 0
-    #     while True:
-    #         action = np.random.choice(actions)
-    #         state, reward, done, info, *_ = env.step(action)
-    #         score += reward
-    #         if done:
-    #             if i % 20 == 0:
-    #                 print('Episode {},  score: {}'.format(i, score))
-    #             break
+    scores = []
+    actions = range(env.action_space.n)
+    for i in range(1, max_episodes+1):
+        state = env.reset()
+        score = 0
+        while True:
+            action = np.random.choice(actions)
+            print("action")
+            print(action)
+            state, reward, done, info, *_ = env.step(action)
+            print("state")
+            print(state)
+            score += reward
+            if done:
+                if i % 20 == 0:
+                    print('Episode {},  score: {}'.format(i, score))
+                break
 
-    #     scores.append(score)
+        scores.append(score)
 
-    # print(state)
-    # for _ in range(20):
-    #     # Take a random action
-    #     action = env.action_space.sample()
-    #     print("Action taken:", action)
+    print(state)
+    for _ in range(20):
+        # Take a random action
+        action = env.action_space.sample()
+        print("Action taken:", action)
 
-    #     # Do this action in the environment and get
-    #     # next_state, reward, done and info
-    #     observation, reward, done, info, *_ = env.step(action)
-    #     print({"observation": observation})
+        # Do this action in the environment and get
+        # next_state, reward, done and info
+        observation, reward, done, info, *_ = env.step(action)
+        print({"observation": observation})
 
-    #     # If the game is done (in our case we land, crashed or timeout)
-    #     if done:
-    #         # Reset the environment
-    #         print("Environment is reset")
-    #         observation = env.reset()
-    # for i in range(20):
-    #     env.step(2)
-    #     env.render()
+        # If the game is done (in our case we land, crashed or timeout)
+        if done:
+            # Reset the environment
+            print("Environment is reset")
+            observation = env.reset()
+    for i in range(20):
+        env.step(2)
+        env.render()
     input()
 
 
