@@ -1,156 +1,146 @@
 import gym
-# colleections library는 replay buffer에 쓰일 deque를 import하기 위함임
-import collections
 import random
-
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
+import numpy as np
+from collections import deque
+import matplotlib.pyplot as plt
+
 
 import cv2
 
-LEARNING_RATE = 0.0005
-GAMMA = 0.95
-BUFFER_LIMIT = 100000
-BATCH_SIZE = 64
+learning_rate = 0.0005
+gamma = 0.98
+buffer_limit = 100000
+batch_size = 64
 
+env = gym.make('LunarLander-v2',render_mode='rgb_array')
+print('State shape: ', env.observation_space.shape)
+print('Number of actions: ', env.action_space.n)
 
-class ReplayBuffer():
+class DQNAgent:
     def __init__(self):
-        self.buffer = collections.deque(maxlen=BUFFER_LIMIT)
+        self.fc1 = torch.nn.Linear(8, 64)
+        self.fc2 = torch.nn.Linear(64, 64)
+        self.fc3 = torch.nn.Linear(64, 4)
 
-    def put(self, transition):
-        self.buffer.append(transition)
+        self.memory = deque(maxlen=10000)
+        self.batch_size = 64
+        self.gamma = 0.99
+        self.eps_start = 1.0
+        self.eps_end = 0.01
+        self.eps_decay = 0.995
+        self.tau = 1e-3
 
-    def sample(self, n):
-        mini_batch = random.sample(self.buffer, n)
-        s_lst, a_lst, r_lst, s_prime_lst, done_mask_lst = [], [], [], [], []
+        self.qnetwork_local = QNetwork()
+        self.qnetwork_target = QNetwork()
+        self.optimizer = torch.optim.Adam(self.qnetwork_local.parameters(), lr=0.0005)
+        self.qnetwork_target.load_state_dict(self.qnetwork_local.state_dict())
+        self.qnetwork_target.eval()
 
-        for transition in mini_batch:
-            s, a, r, s_prime, done_mask = transition
-            s_lst.append(s)
-            a_lst.append([a])
-            r_lst.append([r])
-            s_prime_lst.append(s_prime)
-            done_mask_lst.append([done_mask])
-            return torch.tensor(s_lst, dtype=torch.float), torch.tensor(a_lst, dtype=torch.float), \
-                torch.tensor(r_lst, dtype=torch.float), torch.tensor(s_prime_lst, dtype=torch.float), \
-                torch.tensor(done_mask_lst, dtype=torch.float)
+    def step(self, state, action, reward, next_state, done):
+        self.memory.append((state, action, reward/100.0, next_state, done))
 
-    def size(self):
-        return len(self.buffer)
+        if len(self.memory) > self.batch_size*10:
+            for t in range(10):
+                experiences = random.sample(self.memory, k=self.batch_size)
+                self.learn(experiences)
+               
 
+    def act(self, state, eps):
+        # print(state)
+        state = torch.from_numpy(state).float()
+        with torch.no_grad():
+            action_values = self.qnetwork_local.forward(state)
+        self.qnetwork_local.train()
 
-class Qnet(nn.Module):
-    def __init__(self):
-        super(Qnet, self).__init__()
-        self.fc1 = nn.Linear(8, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 4)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
-
-    def sample_action(self, obs, epsilon):
-        out = self.forward(obs)
-        coin = random.random()
-        if coin < epsilon:
-            return random.randint(0, 3)  # 출력 0 또는3 랜덤값
+        if random.random() > eps:
+            return np.argmax(action_values.cpu().data.numpy())
         else:
-            return out.argmax().item()
+            return random.randint(0, 3)
 
+    def learn(self, experiences):
+        states, actions, rewards, next_states, dones = zip(*experiences)
 
-class QTGnet(nn.Module):
-    def __init__(self):
-        super(QTGnet, self).__init__()
-        self.fc1 = nn.Linear(4, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 4)
+        states = torch.from_numpy(np.array(states)).float()
+        actions = torch.from_numpy(np.array(actions)).long()
+        rewards = torch.from_numpy(np.array(rewards)).float()
+        next_states = torch.from_numpy(np.array(next_states)).float()
+        dones = torch.from_numpy(np.array(dones).astype(np.uint8)).float()
 
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        return x
+        Q_argmax = self.qnetwork_local(next_states).max(1)[1].unsqueeze(1)
+        Q_targets_next = self.qnetwork_target(next_states).gather(1, Q_argmax)
+        Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
+        # Q_targets_next = self.qnetwork_target(next_states).max(1)[0].unsqueeze(1)
+        # Q_targets = rewards + (self.gamma * Q_targets_next * (1 - dones))
 
-    def sample_action(self, obs, epsilon):
-        out = self.forward(obs)
-        coin = random.random()
-        if coin < epsilon:
-            return random.randint(0, 3)  # 출력 0 또는3 랜덤값
-        else:
-            return out.argmax().item()
+        # print(self.qnetwork_local(states))
+        # print(actions.unsqueeze(1))
+        Q_expected = self.qnetwork_local(states).gather(1, actions.unsqueeze(1))
 
-
-def train(q1, q_target, memory, optimizer1, q2, optimizer2):
-    for i in range(10):
-        s, a, r, s_prime, done_mask = memory.sample(BATCH_SIZE)
-        print(s)
-        q_out = q1(s)
-        q_a = q_out.gather(1, a.long())
-        print("------")
-        print(s_prime)
-        a_prime = q2(s_prime)
-        print("------")
-        print(a_prime)
-        max_q_prime = q_target.forward(a_prime).max(1)[0].unsqueeze(1)
-        target = r + GAMMA * max_q_prime * done_mask
-        loss = F.smooth_l1_loss(q_a, target)
-        optimizer1.zero_grad()
-        optimizer2.zero_grad()
+        loss = torch.nn.functional.mse_loss(Q_expected, Q_targets)
+        self.optimizer.zero_grad()
         loss.backward()
-        optimizer1.step()
-        optimizer2.step()
+        self.optimizer.step()
 
+        self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
 
-def main():
-    env = gym.make('LunarLander-v2',  render_mode='rgb_array')
+    def soft_update(self, local_model, target_model, tau):
+        for target_param, local_param in zip(target_model.parameters(), local_model.parameters()):
+                target_param.data.copy_(tau * local_param.data + (1.0 - tau) * target_param.data)
 
-    q1 = Qnet()
-    q2 = Qnet()
-    q_target = QTGnet()
-    q2.load_state_dict(q1.state_dict())
-    memory = ReplayBuffer()
+class QNetwork(torch.nn.Module):
+    def __init__(self):
+        super(QNetwork, self).__init__()
+        self.fc1 = torch.nn.Linear(8, 64)
+        self.fc2 = torch.nn.Linear(64, 64)
+        self.fc3 = torch.nn.Linear(64, 4)
 
-    print_interval = 20
-    score = 0.0
+    def forward(self, state):
+        x = torch.nn.functional.relu(self.fc1(state))
+        x = torch.nn.functional.relu(self.fc2(x))
+        return self.fc3(x)
 
-    optimizer1 = optim.Adam(q1.parameters(), lr=LEARNING_RATE)
-    optimizer2 = optim.Adam(q2.parameters(), lr=LEARNING_RATE)
+agent = DQNAgent()
 
-    for epiIndex in range(10000):
-        epsilon = max(0.01, 0.5 - 0.01*(epiIndex/200))
-        s, _ = env.reset()
-        done = False
-        time = 1000
-        for t in range(time):
-            a = q1.sample_action(torch.from_numpy(s).float(), epsilon)
-            s_prime, r, done, truncated, info = env.step(a)
-            done_mask = 0.0 if done else 1.0
-            memory.put((s, a, r/100.0, s_prime, done_mask))
-            s = s_prime
+def double_dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.01, eps_decay=0.999):
+    scores = []
+    scores_window = deque(maxlen=100)
+    eps = eps_start
 
-            score += r
-            if epiIndex % 500 == 0 and epiIndex != 0:
+    for i_episode in range(1, n_episodes+1):
+        state,_ = env.reset()
+        score = 0
+        for t in range(max_t):
+            action = agent.act(state, eps)
+            next_state, reward, done,  truncated, info  = env.step(action)
+            agent.step(state, action, reward, next_state, done)
+            state = next_state
+            score += reward
+            if i_episode % 500 == 0 and i_episode != 0:
                 img = cv2.cvtColor(env.render(), cv2.COLOR_RGB2BGR)
                 cv2.imshow("test", img)
                 cv2.waitKey(30)
             if done:
                 break
-        if memory.size() > 5000:
-            train(q1, q_target, memory, optimizer1, q2, optimizer2)
-        if epiIndex % print_interval == 0 and epiIndex != 0:
-            q_target.load_state_dict(q1.state_dict())
-            print("n_episode :{}, score : {:.1f}, n_buffer : {}, eps : {:.1f}%".format(
-                epiIndex, score/print_interval, memory.size(), epsilon*100))
-            score = 0.0
 
-    env.close()
+        scores_window.append(score)
+        scores.append(score)
+        eps = max(eps_end, eps_decay*eps)
 
+        print('\rEpisode {}\tAverage Score: {}\tEPS: {:.2f}'.format(i_episode, np.mean(scores_window),eps), end="")
+        if i_episode % 100 == 0:
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
+        if np.mean(scores_window)>=200.0:
+            print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
+            torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth')
+            break
+    return scores
 
-if __name__ == '__main__':
-    main()
+scores = double_dqn()
+env.close()
+
+plt.plot(np.arange(len(scores)), scores)
+plt.ylabel('Score')
+plt.xlabel('Episode #')
+plt.show()
+
