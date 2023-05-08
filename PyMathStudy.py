@@ -1,5 +1,6 @@
 import torch
-
+# print(torch.cuda.get_device_name(0) )
+# print(torch.cuda.is_available() )
 
 # # 2x3 크기의 텐서를 생성합니다.
 # x = torch.tensor([[1, 2, 3], [4, 5, 6]])

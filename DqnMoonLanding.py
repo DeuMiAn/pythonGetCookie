@@ -2,6 +2,8 @@ import gym
 # colleections library는 replay buffer에 쓰일 deque를 import하기 위함임
 import collections
 import random
+from matplotlib import pyplot as plt
+import numpy as np
 
 import torch
 import torch.nn as nn
@@ -9,6 +11,16 @@ import torch.nn.functional as F
 import torch.optim as optim
 
 import cv2
+
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+USE_CUDA = torch.cuda.is_available()
+
+print('CUDA 사용 가능 여부 :', USE_CUDA)
+print('현재 사용 device :', DEVICE)
+print('CUDA Index :', torch.cuda.current_device())
+print('GPU 이름 :', torch.cuda.get_device_name())
+print('GPU 개수 :', torch.cuda.device_count())
 
 learning_rate = 0.0005
 gamma = 0.98
@@ -38,9 +50,9 @@ class ReplayBuffer():
             s_prime_lst.append(s_prime)
             done_mask_lst.append([done_mask])
 
-        return torch.tensor(s_lst, dtype=torch.float), torch.tensor(a_lst, dtype=torch.float), \
-            torch.tensor(r_lst, dtype=torch.float), torch.tensor(s_prime_lst, dtype=torch.float), \
-            torch.tensor(done_mask_lst, dtype=torch.float)
+        return torch.tensor(s_lst, dtype=torch.float).to(DEVICE), torch.tensor(a_lst, dtype=torch.float).to(DEVICE), \
+            torch.tensor(r_lst, dtype=torch.float).to(DEVICE), torch.tensor(s_prime_lst, dtype=torch.float).to(DEVICE), \
+            torch.tensor(done_mask_lst, dtype=torch.float).to(DEVICE)
 
     def size(self):
         return len(self.buffer)
@@ -84,13 +96,16 @@ def train(q, q_target, memory, optimizer):
 def main():
     env = gym.make('LunarLander-v2',  render_mode='rgb_array')
 
-    q = Qnet()
-    q_target = Qnet()
+    q = Qnet().to(DEVICE)
+    q_target = Qnet().to(DEVICE)
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
     print_interval = 20
     score = 0.0
+
+    scores = []
+    scores_window = collections.deque(maxlen=100)
 
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
 
@@ -101,7 +116,7 @@ def main():
         time = 0
         for t in range(1000):
             time += 1
-            a = q.sample_action(torch.from_numpy(s).float(), epsilon)
+            a = q.sample_action(torch.from_numpy(s).float().to(DEVICE), epsilon)
             s_prime, r, done, truncated, info = env.step(a)
             done_mask = 0.0 if done else 1.0
             memory.put((s, a, r/100.0, s_prime, done_mask))
@@ -114,6 +129,7 @@ def main():
                 cv2.waitKey(30)
             if done:
                 break
+        scores.append(score)
         if memory.size() > 5000:
             train(q, q_target, memory, optimizer)
         if epiIndex % print_interval == 0 and epiIndex != 0:
@@ -124,10 +140,11 @@ def main():
 
     env.close()
 
-    print(s)
+    plt.plot(np.arange(len(scores)), scores)
+    plt.ylabel('Score')
+    plt.xlabel('Episode #')
+    plt.show()
 
-    print('a')
-    print(a)
 
 
 if __name__ == '__main__':
