@@ -62,8 +62,8 @@ class Qnet(nn.Module):
     def __init__(self):
         super(Qnet, self).__init__()
         self.fc1 = nn.Linear(8, 64)
-        self.fc2 = nn.Linear(64, 128)
-        self.fc3 = nn.Linear(128, 4)
+        self.fc2 = nn.Linear(64, 64)
+        self.fc3 = nn.Linear(64, 4)
 
     def forward(self, x):
         x = F.relu(self.fc1(x))
@@ -101,17 +101,19 @@ def main():
     q_target.load_state_dict(q.state_dict())
     memory = ReplayBuffer()
 
-    print_interval = 20
-    score = 0.0
+    print_interval = 100
 
     scores = []
     scores_window = collections.deque(maxlen=100)
 
     optimizer = optim.Adam(q.parameters(), lr=learning_rate)
-
+    epsilon=0.5
     for epiIndex in range(10000):
-        epsilon = max(0.01, 0.5 - 0.01*(epiIndex/200))
+        # epsilon = max(0.01, 0.5 - 0.01*(epiIndex/200))
+        
+        epsilon = max(0.01, 0.998*epsilon)
         s, _ = env.reset()
+        score = 0
         done = False
         time = 0
         for t in range(1000):
@@ -129,9 +131,13 @@ def main():
                 cv2.waitKey(30)
             if done:
                 break
+        scores_window.append(score)
         scores.append(score)
-        if memory.size() > 5000:
+        if memory.size() > 7000:
             train(q, q_target, memory, optimizer)
+        print('\rEpisode {}\tAverage Score: {}\tEPS: {:.2f}'.format(epiIndex, np.mean(scores_window),epsilon), end="")
+        if epiIndex % print_interval == 0:
+            print('\rEpisode {}\tAverage Score: {:.2f}'.format(epiIndex, np.mean(scores_window)))
         if epiIndex % print_interval == 0 and epiIndex != 0:
             q_target.load_state_dict(q.state_dict())
             print("n_episode :{}, score : {:.1f}, n_buffer : {}, eps : {:.1f}%".format(

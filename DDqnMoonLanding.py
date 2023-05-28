@@ -36,7 +36,7 @@ class DQNAgent:
         self.eps_start = 1.0
         self.eps_end = 0.01
         self.eps_decay = 0.995
-        self.tau = 0.01
+        self.tau = 0.005
 
         self.update_step = 4
         self.steps=0
@@ -52,10 +52,12 @@ class DQNAgent:
     def step(self, state, action, reward, next_state, done):
         self.memory.add(state, action, reward/100.0, next_state, done)
         # print(self.steps)
-        if len(self.memory) > self.batch_size:
-            for i in range(4):
+        self.steps = (self.steps + 1) % self.update_step
+        if self.steps == 0  and len(self.memory) > self.batch_size*5:
+            for i in range(3):
                 experiences = self.memory.sample()
                 self.learn(experiences)
+                
                
 
     def act(self, state, eps):
@@ -121,9 +123,7 @@ class DQNAgent:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-        self.steps = (self.steps + 1) % self.update_step
-        if self.steps == 0 :
-            self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
+        self.soft_update(self.qnetwork_local, self.qnetwork_target, self.tau)
             
 
     def soft_update(self, local_model, target_model, tau):
@@ -142,8 +142,8 @@ class QNetwork(torch.nn.Module):
     def __init__(self):
         super(QNetwork, self).__init__()
         self.fc1 = torch.nn.Linear(8, 64)
-        self.fc2 = torch.nn.Linear(64, 128)
-        self.fc3 = torch.nn.Linear(128, 4)
+        self.fc2 = torch.nn.Linear(64, 64)
+        self.fc3 = torch.nn.Linear(64, 4)
 
     def forward(self, state):
         x = torch.nn.functional.relu(self.fc1(state))
@@ -192,7 +192,7 @@ class ReplayBuffer:
 
 agent = DQNAgent()
 
-def double_dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.05, eps_decay=0.9995):
+def double_dqn(n_episodes=10000, max_t=1000, eps_start=0.5, eps_end=0.01, eps_decay=0.998):
     scores = []
     scores_window = deque(maxlen=100)
     eps = eps_start
@@ -221,10 +221,10 @@ def double_dqn(n_episodes=2000, max_t=1000, eps_start=1.0, eps_end=0.05, eps_dec
         print('\rEpisode {}\tAverage Score: {}\tEPS: {:.2f}'.format(i_episode, np.mean(scores_window),eps), end="")
         if i_episode % 100 == 0:
             print('\rEpisode {}\tAverage Score: {:.2f}'.format(i_episode, np.mean(scores_window)))
-        if np.mean(scores_window)>=200.0:
-            print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
-            torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth').to(DEVICE)
-            break
+        # if np.mean(scores_window)>=200.0:
+        #     print('\nEnvironment solved in {:d} episodes!\tAverage Score: {:.2f}'.format(i_episode-100, np.mean(scores_window)))
+        #     torch.save(agent.qnetwork_local.state_dict(), 'checkpoint.pth').to(DEVICE)
+        #     break
     return scores
 
 scores = double_dqn()
